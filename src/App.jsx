@@ -1,48 +1,80 @@
-import { useState } from 'react'
 import logo from './logo.svg'
 import './App.css'
-import { WalletLinkConnector } from "@web3-react/walletlink-connector";
-import { WalletConnectConnector } from "@web3-react/walletconnect-connector";
-import { InjectedConnector } from "@web3-react/injected-connector";
-import { useWeb3React } from '@web3-react/core'
+import MetaMaskOnboarding from '@metamask/onboarding'
+import { useRef,useState } from 'react'
 
-// const CoinbaseWallet = new WalletLinkConnector({
-//  url: `https://mainnet.infura.io/v3/${process.env.INFURA_KEY}`,
-//  appName: "Web3-react Demo",
-//  supportedChainIds: [1, 3, 4, 5, 42],
-// });
+//We create a new MetaMask onboarding object to use in our app
+const onboarding = new MetaMaskOnboarding()
+onboarding.stopOnboarding()
 
-// const WalletConnect = new WalletConnectConnector({
-//  rpcUrl: `https://mainnet.infura.io/v3/${process.env.INFURA_KEY}`,
-//  bridge: "https://bridge.walletconnect.org",
-//  qrcode: true,
-// });
+const isMetaMaskInstalled = () =>{
+  const { ethereum } = window
+  console.log(ethereum)
+  return ethereum && ethereum.isMetaMask
+}
 
-const Injected = new InjectedConnector({
- supportedChainIds: [1, 3, 4, 5, 42]
-});
+
+const onClickInstall = () =>{
+  onboarding.startOnboarding()
+}
+
+async function isMetaMaskConnected() {
+  const {ethereum} = window;
+  const accounts = await ethereum.request({method: 'eth_accounts'});
+  return accounts;
+}
+
+console.log(isMetaMaskConnected())
+
 
 function App() {
-  const { activate, active, chainId, account } = useWeb3React();
-  const disconnect = async () => {
-    await web3Modal.clearCachedProvider();
-    refreshState();
+  
+  const button = useRef()
+  const [stats,setStats] = useState({
+    account_id : 0,
+    account_balance : 0
+  })
+
+  const MetaMaskClientCheck = () => {
+    button.current.disabled = true;
+    isMetaMaskInstalled() ?  onClickConnect(): onClickInstall() 
+  }
+
+  const onClickConnect = async () => {
+    // Will open the MetaMask UI
+    // Get the account
+    const accounts = await ethereum.request({ method: 'eth_requestAccounts' })
+    ethereum
+    .request({
+      method: 'eth_getBalance',
+      params: [accounts[0],'latest'],
+    })
+    .then( decryptedMessage => {
+        const wei = parseInt(decryptedMessage,16);
+        const balance = wei /(10**18)
+        setStats({account: accounts[0],account_balance:balance})
+      }
+    )
+    button.current.innerHTML = accounts[0] || "Not able to get accounts"
   };
+
   return (
     <div className="App">
       <header className="App-header">
         <img src={logo} className="App-logo" alt="logo" />
         <p>Hello Vite + React!</p>
         <p>
-          <button onClick={() => { activate(CoinbaseWallet) }}>Coinbase Wallet</button>
-          <button onClick={() => { activate(WalletConnect) }}>Wallet Connect</button>
-          <button onClick={() => { activate(Injected) }}>Metamask</button>
-          <button onClick={() => {disconnect}}>Disconnect</button>
+          <button ref={button} onClick={MetaMaskClientCheck}>
+            {isMetaMaskInstalled() ? "Connect" : "Click To Install"}
+          </button>
+          <button >Disconnect</button>
         </p>
         <p>
-        Connection Status: {active}
-        Account: {account}
-        Network ID: {chainId}
+        Connection Status: 
+        <br />
+        Account: {stats.account}
+        <br />
+        Balance: {stats.account_balance}
         </p>
         <p>
           <a
